@@ -1,47 +1,10 @@
 #include "MedianFilter.cuh"
 
-#define swap(A,B) { float temp = A; A = B; B = temp;}
+__device__ void csort(uint8_t ls[], int l, int r);
 
-__device__ void csort(uint8_t ls[], int l, int r) {
-	int i, j, k, p, q;
-	float v;
-	if (r <= l)
-		return;
-	v = ls[r];
-	i = l - 1;
-	j = r;
-	p = l - 1;
-	q = r;
-	for (;;) {
-		while (ls[++i] < v);
-		while (v < ls[--j])
-			if (j == l)
-				break;
-		if (i >= j)
-			break;
-		swap(ls[i], ls[j]);
-		if (ls[i] == v) {
-			p++;
-			swap(ls[p], ls[i]);
-		}
-		if (v == ls[j]) {
-			q--;
-			swap(ls[q], ls[j]);
-		}
-	}
-	swap(ls[i], ls[r]);
-	j = i - 1;
-	i++;
-	for (k = l; k < p; k++, j--)
-		swap(ls[k], ls[j]);
-	for (k = r - 1; k > q; k--, i++)
-		swap(ls[k], ls[i]);
-
-	csort(ls, l, j);
-	csort(ls, i, r);
-}
-
-
+//
+// GPU implementation
+//
 __global__ void MedianFilterGPUKernel(uint8_t* imageSrc, uint8_t* imageDst, int channels, int32_t uKernelRadius, uint32_t uKernelPixelCount, uint32_t uMedianIdx)
 {
 	int row = blockIdx.x;
@@ -97,3 +60,50 @@ namespace filter
 		cudaFree(dev_imageDst);
 	}
 }
+
+
+#define swap(A,B) { float temp = A; A = B; B = temp;}
+
+//
+// Quick sort
+// thanks to https://github.com/khaman1/GPU-QuickSort-Algorithm
+//
+__device__ void csort(uint8_t ls[], int l, int r) {
+	int i, j, k, p, q;
+	float v;
+	if (r <= l)
+		return;
+	v = ls[r];
+	i = l - 1;
+	j = r;
+	p = l - 1;
+	q = r;
+	for (;;) {
+		while (ls[++i] < v);
+		while (v < ls[--j])
+			if (j == l)
+				break;
+		if (i >= j)
+			break;
+		swap(ls[i], ls[j]);
+		if (ls[i] == v) {
+			p++;
+			swap(ls[p], ls[i]);
+		}
+		if (v == ls[j]) {
+			q--;
+			swap(ls[q], ls[j]);
+		}
+	}
+	swap(ls[i], ls[r]);
+	j = i - 1;
+	i++;
+	for (k = l; k < p; k++, j--)
+		swap(ls[k], ls[j]);
+	for (k = r - 1; k > q; k--, i++)
+		swap(ls[k], ls[i]);
+
+	csort(ls, l, j);
+	csort(ls, i, r);
+}
+
